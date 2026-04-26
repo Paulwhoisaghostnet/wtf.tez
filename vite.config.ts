@@ -4,17 +4,53 @@ import path from "node:path";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 
+const DEFAULT_SITE_URL = "https://wtftez.com";
+const SITE_URL_TOKEN = "__WTF_TEZ_SITE_URL__";
+const KT1_ADDRESS_RE = /^KT1[1-9A-HJ-NP-Za-km-z]{33}$/;
+
 function requireMainnetEnv(): Plugin {
     return {
         name: "require-mainnet-env",
         configResolved(config) {
             if (config.build?.ssr) return; // env not needed for SSR/prerender builds
-            if (!config.env.VITE_REGISTRAR_ADDRESS) {
+            const network = config.env.VITE_TEZOS_NETWORK || "ghostnet";
+            if (!["ghostnet", "mainnet", "shadownet"].includes(network)) {
+                throw new Error("[wtf.tez] VITE_TEZOS_NETWORK must be ghostnet, mainnet, or shadownet.");
+            }
+
+            const registrar = config.env.VITE_REGISTRAR_ADDRESS || "";
+            if (!KT1_ADDRESS_RE.test(registrar)) {
                 throw new Error(
-                    "[wtf.tez] VITE_REGISTRAR_ADDRESS must be set.\n" +
-                        "Set it in your .env file or CI/CD environment variables.",
+                    "[wtf.tez] VITE_REGISTRAR_ADDRESS must be a KT1 contract address.\n" +
+                        "Set it in your .env file or CI/CD environment variables for each Netlify context.",
                 );
             }
+
+            const siteUrl = (config.env.VITE_SITE_URL || DEFAULT_SITE_URL).replace(/\/+$/, "");
+            try {
+                new URL(siteUrl);
+            } catch {
+                throw new Error("[wtf.tez] VITE_SITE_URL must be an absolute URL.");
+            }
+        },
+    };
+}
+
+function htmlEnvDefaults(): Plugin {
+    let resolvedSiteUrl = DEFAULT_SITE_URL;
+    return {
+        name: "html-env-defaults",
+        enforce: "pre",
+        configResolved(config) {
+            resolvedSiteUrl = (config.env.VITE_SITE_URL || DEFAULT_SITE_URL).trim().replace(/\/+$/, "") || DEFAULT_SITE_URL;
+        },
+        transformIndexHtml(html, ctx) {
+            const siteUrl =
+                ctx.server?.config.env.VITE_SITE_URL?.trim().replace(/\/+$/, "") ||
+                resolvedSiteUrl;
+            return html
+                .replaceAll(SITE_URL_TOKEN, siteUrl)
+                .replaceAll("%VITE_SITE_URL%", siteUrl);
         },
     };
 }
@@ -83,7 +119,7 @@ function handleProbeDisconnects(): Plugin {
 }
 
 export default defineConfig({
-    plugins: [requireMainnetEnv(), copySkillsToPublic(), handleProbeDisconnects(), react(), tailwindcss()],
+    plugins: [requireMainnetEnv(), htmlEnvDefaults(), copySkillsToPublic(), handleProbeDisconnects(), react(), tailwindcss()],
     define: {
         "process.env.NODE_ENV": JSON.stringify("production"),
         "process.env": "{}",
@@ -140,6 +176,40 @@ export default defineConfig({
                             id.includes("/unist-")
                         ) {
                             return "vendor-markdown";
+                        }
+                        if (
+                            id.includes("@taquito/") ||
+                            id.includes("@tezos-x/") ||
+                            id.includes("@walletconnect/") ||
+                            id.includes("@stablelib/") ||
+                            id.includes("@noble/") ||
+                            id.includes("@scure/")
+                        ) {
+                            return "vendor-tezos";
+                        }
+                        if (
+                            id.includes("@blocknote/") ||
+                            id.includes("@tiptap/") ||
+                            id.includes("/prosemirror-") ||
+                            id.includes("/y-prosemirror/") ||
+                            id.includes("/yjs/")
+                        ) {
+                            return "vendor-editor";
+                        }
+                        if (
+                            id.includes("@mantine/") ||
+                            id.includes("@floating-ui/") ||
+                            id.includes("@radix-ui/")
+                        ) {
+                            return "vendor-ui";
+                        }
+                        if (
+                            id.includes("/emoji-picker-react/") ||
+                            id.includes("/gifenc/") ||
+                            id.includes("/opentype.js/") ||
+                            id.includes("@resvg/")
+                        ) {
+                            return "vendor-media";
                         }
                     }
                 },

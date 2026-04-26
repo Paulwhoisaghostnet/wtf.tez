@@ -184,10 +184,17 @@ Response shape: `{ data: ..., network: "ghostnet" | "mainnet" }` on success, `{ 
 
 | Variable | Description |
 |---|---|
-| `VITE_TEZOS_NETWORK` | `ghostnet` (default) or `mainnet` |
-| `VITE_REGISTRAR_ADDRESS` | Contract address override |
-| `VITE_HACKCHAT_URL` | Chat worker URL (default: `http://localhost:8787`) |
+| `VITE_TEZOS_NETWORK` | `ghostnet`, `mainnet`, or `shadownet` |
+| `VITE_REGISTRAR_ADDRESS` | Required public KT1 registrar contract for this deploy context |
+| `VITE_SITE_URL` | Absolute canonical URL used in metadata and share links |
+| `VITE_WTFCHAT_URL` | Chat worker URL (legacy `VITE_HACKCHAT_URL` is still accepted) |
 | `VITE_PARTYKIT_HOST` | PartyKit host (default: `localhost:1999`) |
+| `PINATA_JWT` | Server-side Netlify secret for `/api/v1/pin`; never prefix with `VITE_` |
+| `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` | Optional server-side replay protection for signed pin requests |
+| `DATABASE_URL` | Neon/Postgres URL used by wiki Netlify functions and loader scripts |
+| `CHAT_JWT_SECRET` | Server-side JWT secret shared with the chat worker |
+
+The Vite build fails early when `VITE_REGISTRAR_ADDRESS` is missing or not a KT1 address. Keep production, preview, and local Netlify contexts explicit so contract metadata and share URLs cannot silently drift.
 
 ---
 

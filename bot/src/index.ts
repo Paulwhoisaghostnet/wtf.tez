@@ -7,6 +7,7 @@ import { fetchLatestClaimId, fetchLatestCommitId } from "./services/tzkt.ts";
 
 const args = new Set(process.argv.slice(2));
 const BOOTSTRAP_LATEST = args.has("--bootstrap-latest");
+const SMOKE_CHECK = args.has("--smoke-check");
 const ALLOW_COLD_START =
     args.has("--allow-cold-start") ||
     process.env.BOT_ALLOW_COLD_START === "1" ||
@@ -25,6 +26,15 @@ async function bootstrapLatestCursors(): Promise<void> {
 }
 
 async function main(): Promise<void> {
+    if (SMOKE_CHECK) {
+        console.log("✅ hack.tez bot smoke check passed");
+        console.log(`   Network:   ${NETWORK.name}`);
+        console.log(`   Contract:  ${NETWORK.registrarAddress}`);
+        console.log(`   TzKT API:  ${NETWORK.tzktApi}`);
+        console.log(`   Cursors:   claims=${hasPollCursor("last_claim_id")} commits=${hasPollCursor("last_commit_id")}`);
+        return;
+    }
+
     if (BOOTSTRAP_LATEST) {
         await bootstrapLatestCursors();
         return;

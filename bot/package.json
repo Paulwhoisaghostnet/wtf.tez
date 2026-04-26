@@ -9,6 +9,7 @@
         "bootstrap": "bun run src/index.ts --bootstrap-latest",
         "start:cold": "bun run src/index.ts --allow-cold-start",
         "dev": "bun --watch run src/index.ts",
+        "smoke": "bun run src/index.ts --smoke-check",
         "typecheck": "tsc --noEmit"
     },
     "dependencies": {
@@ -16,6 +17,7 @@
     },
     "devDependencies": {
         "@types/bun": "latest",
+        "bun": "^1.3.13",
         "typescript": "^5.8.3"
     }
 }
