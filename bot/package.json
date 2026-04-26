@@ -1,0 +1,21 @@
+{
+    "name": "hack-tez-bot",
+    "version": "1.0.0",
+    "private": true,
+    "description": "Telegram bot for hack.tez subdomain event monitoring",
+    "type": "module",
+    "scripts": {
+        "start": "bun run src/index.ts",
+        "bootstrap": "bun run src/index.ts --bootstrap-latest",
+        "start:cold": "bun run src/index.ts --allow-cold-start",
+        "dev": "bun --watch run src/index.ts",
+        "typecheck": "tsc --noEmit"
+    },
+    "dependencies": {
+        "grammy": "^1.31.0"
+    },
+    "devDependencies": {
+        "@types/bun": "latest",
+        "typescript": "^5.8.3"
+    }
+}
