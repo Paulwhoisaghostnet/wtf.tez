@@ -18,7 +18,7 @@
  *   source .env && npx tsx scripts/redeploy-ghostnet.ts
  *
  * After deployment:
- *   1. Add the NEW contract as operator on hack.gho NFT from tz1Qi77... wallet
+ *   1. Add the NEW contract as operator on the configured parent-domain NFT
  *   2. Update src/config/tezos.ts with the new KT1 address
  *   3. Run: npx tsx scripts/test-ghostnet.ts --check-only
  */
@@ -35,25 +35,53 @@ const TZKT_API = "https://api.ghostnet.tzkt.io";
 const TED_GRAPHQL = "https://ghostnet-api.tezos.domains/graphql";
 const OLD_REGISTRAR = "KT1X2ZbjZBaeRnnkzLyaZ3FtGp7wKuaimbzg";
 const SET_CHILD_RECORD_PROXY = "KT1HpddfW7rX5aT2cTdsDaQZnH46bU7jQSTU";
-const PARENT_SUFFIX = ".hack.gho";
 
-/** Query TED for all current .hack.gho subdomains → claimed_labels entries.
+function normalizeDomain(value: string): string {
+    return value.trim().replace(/^\.+|\.+$/g, "").toLowerCase();
+}
+
+function configuredGhostnetParentDomain(): string {
+    const explicit = process.env.GHOSTNET_PARENT_DOMAIN || process.env.VITE_GHOSTNET_PARENT_DOMAIN;
+    if (explicit) {
+        const domain = normalizeDomain(explicit);
+        if (!domain.endsWith(".gho")) {
+            throw new Error(`Configured ghostnet parent domain must end in .gho; got "${domain}"`);
+        }
+        return domain;
+    }
+
+    if (process.env.PARENT_DOMAIN) {
+        const domain = normalizeDomain(process.env.PARENT_DOMAIN);
+        if (domain.endsWith(".gho")) return domain;
+        if (domain.endsWith(".tez")) return `${domain.slice(0, -".tez".length)}.gho`;
+        throw new Error(`Configured parent domain must end in .tez or .gho; got "${domain}"`);
+    }
+
+    const label = normalizeDomain(process.env.PARENT_DOMAIN_LABEL || process.env.VITE_PARENT_DOMAIN_LABEL || "wtf");
+    return `${label}.gho`;
+}
+
+const PARENT_DOMAIN = configuredGhostnetParentDomain();
+const PARENT_SUFFIX = `.${PARENT_DOMAIN}`;
+const PARENT_NAME_HEX = Buffer.from(PARENT_DOMAIN, "utf8").toString("hex");
+
+/** Query TED for all current parent-domain subdomains → claimed_labels entries.
  *  Returns labelHex → ownerAddress (current on-chain state). */
 async function fetchClaimedLabelsFromTED(): Promise<Map<string, string>> {
     const claimed = new Map<string, string>();
     const PAGE = 500;
     let cursor: string | null = null;
 
-    console.log(`\n🔍 Fetching current .hack.gho domains from TED...`);
+    console.log(`\n🔍 Fetching current ${PARENT_SUFFIX} domains from TED...`);
 
     while (true) {
         const res = await fetch(TED_GRAPHQL, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-                query: `query AllHackGho($first: Int!, $after: String) {
+                query: `query AllParentGhostnetDomains($suffix: String!, $first: Int!, $after: String) {
                     domains(
-                        where: { name: { endsWith: ".hack.gho" } }
+                        where: { name: { endsWith: $suffix } }
                         first: $first
                         after: $after
                     ) {
@@ -61,7 +89,7 @@ async function fetchClaimedLabelsFromTED(): Promise<Map<string, string>> {
                         pageInfo { hasNextPage endCursor }
                     }
                 }`,
-                variables: { first: PAGE, after: cursor },
+                variables: { suffix: PARENT_SUFFIX, first: PAGE, after: cursor },
             }),
         });
         if (!res.ok) throw new Error(`TED error: ${res.status} ${await res.text()}`);
@@ -74,7 +102,9 @@ async function fetchClaimedLabelsFromTED(): Promise<Map<string, string>> {
         };
 
         for (const { name, owner } of items) {
+            if (!name.endsWith(PARENT_SUFFIX)) continue;
             const label = name.slice(0, -PARENT_SUFFIX.length);
+            if (!label || label.includes(".")) continue;
             const labelHex = "0x" + Buffer.from(label, "utf8").toString("hex");
             claimed.set(labelHex, owner);
         }
@@ -141,6 +171,7 @@ async function main() {
 
     console.log(`\n🔑 Deployer/Admin: ${adminAddress}`);
     console.log(`📡 RPC: ${RPC_URL}`);
+    console.log(`🌐 Network: ghostnet (${PARENT_DOMAIN})`);
 
     // ─── Load compiled Michelson ─────────────────────────────────
     console.log(`\n📦 Loading compiled Michelson from ${CONTRACT_JSON}...`);
@@ -160,7 +191,7 @@ async function main() {
     const metadataJson = JSON.stringify({
         name: "HackTezRegistrar",
         version: "3.0.0",
-        description: "Free sub-domain registrar for hack.gho on ghostnet. Owner=sender model.",
+        description: `Free sub-domain registrar for ${PARENT_DOMAIN} on ghostnet. Owner=sender model.`,
         interfaces: ["TZIP-016"],
     });
     metadata.set("", Buffer.from("tezos-storage:content").toString("hex"));
@@ -192,7 +223,7 @@ async function main() {
         min_commit_age: 30, // 30s for ghostnet testing
         min_label_length: 3,
         name_registry: SET_CHILD_RECORD_PROXY,
-        parent_name: "6861636b2e67686f", // "hack.gho" in hex
+        parent_name: PARENT_NAME_HEX,
         paused: false,
         pending_commitments: new MichelsonMap(),
         proposed_admin: null,
@@ -204,7 +235,7 @@ async function main() {
     console.log(`\n📝 Initial storage:`);
     console.log(`  admin_address: ${storage.admin_address}`);
     console.log(`  name_registry: ${storage.name_registry}`);
-    console.log(`  parent_name: hack.gho (${storage.parent_name})`);
+    console.log(`  parent_name: ${PARENT_DOMAIN} (${storage.parent_name})`);
     console.log(`  min_commit_age: ${storage.min_commit_age}s`);
     console.log(`  max_commit_age: ${storage.max_commit_age}s`);
     console.log(`  max_per_wallet: ${storage.max_per_wallet}`);
@@ -228,9 +259,11 @@ async function main() {
     console.log(`  BCD: https://better-call.dev/ghostnet/${contractAddress}`);
 
     console.log(`\n📋 Next steps:`);
-    console.log(`  1. From tz1Qi77... wallet, add ${contractAddress} as operator on hack.gho NFT:`);
+    console.log(`  1. From the ${PARENT_DOMAIN} owner wallet, add ${contractAddress} as operator on the ${PARENT_DOMAIN} NFT:`);
     console.log(`     → NameRegistry: KT1REqKBXwULnmU6RpZxnRBUgcBmESnXhCWs`);
-    console.log(`     → update_operators → add_operator(owner=tz1Qi77..., operator=${contractAddress}, token_id=3577)`);
+    console.log(
+        `     → update_operators → add_operator(owner=<parent-owner>, operator=${contractAddress}, token_id=<${PARENT_DOMAIN} token_id>)`,
+    );
     console.log(`  2. Update src/config/tezos.ts: registrarAddress = "${contractAddress}"`);
     console.log(`  3. Run: npx tsx scripts/test-ghostnet.ts --check-only`);
     console.log(`  4. Run: npx tsx scripts/test-ghostnet.ts --label testfoo`);

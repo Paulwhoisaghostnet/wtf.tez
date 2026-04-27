@@ -99,6 +99,15 @@ export const parentDomain: string =
     (import.meta.env.VITE_PARENT_DOMAIN || "").trim().toLowerCase() ||
     `${parentDomainLabel}.${config.tld}`;
 
+export function domainForLabel(label: string): string {
+    return `${label}.${parentDomain}`;
+}
+
+export function labelFromDomain(name: string): string {
+    const suffix = `.${parentDomain}`;
+    return name.endsWith(suffix) ? name.slice(0, -suffix.length) : name;
+}
+
 export const chatParentDomains: string[] =
     ((import.meta.env.VITE_CHAT_PARENT_DOMAINS || `${parentDomainLabel},hack`) as string)
         .split(",")

@@ -6,7 +6,7 @@ import { ArrowLeft, Lock, Unlock, Archive, Trash2, Save } from "lucide-react";
 import { useCreateBlockNote } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/mantine";
 import { MantineProvider } from "@mantine/core";
-import { chatParentDomains } from "../../config/tezos";
+import { chatParentDomains, parentDomain } from "../../config/tezos";
 import "@mantine/core/styles.css";
 import "@blocknote/mantine/style.css";
 import "@blocknote/core/fonts/inter.css";
@@ -209,7 +209,7 @@ export default function ArticleEditor({ slug }: Props) {
     return (
       <div className="container" style={{ paddingBlock: "3rem 5rem" }}>
         <p style={{ color: "var(--fg-3)", fontFamily: "var(--font)", fontSize: "0.75rem" }}>
-          Requires wallet connection and a hack.tez domain.
+          Requires wallet connection and a {parentDomain} domain.
         </p>
       </div>
     );

@@ -1,4 +1,5 @@
 import OnboardingHint from "./OnboardingHint";
+import { parentDomain } from "../../config/tezos";
 
 /**
  * Neon callout text rendered above the search area on the Home page.
@@ -19,10 +20,10 @@ export default function ClaimHint() {
  */
 export function ClaimHintBanner() {
     return (
-        <OnboardingHint step="claim" dismissible ariaLabel="Claim your hack.tez domain" style={{ padding: "0.75rem 1rem", marginBottom: "1rem" }}>
+        <OnboardingHint step="claim" dismissible ariaLabel={`Claim your ${parentDomain} domain`} style={{ padding: "0.75rem 1rem", marginBottom: "1rem" }}>
             <p style={{ margin: 0, fontSize: "0.8rem" }}>
                 <strong style={{ color: "var(--ok)" }}>⚡ Ready to claim?</strong>{" "}
-                Head to the <a href="/" style={{ color: "var(--ok)", textDecoration: "underline" }}>home page</a> to register your hack.tez name.
+                Head to the <a href="/" style={{ color: "var(--ok)", textDecoration: "underline" }}>home page</a> to register your {parentDomain} name.
             </p>
         </OnboardingHint>
     );

@@ -84,7 +84,7 @@ export default function AdminPanel() {
     //     return (
     //         <div className="container" style={{ paddingBlock: "3rem 5rem" }}>
     //             <p style={{ color: "var(--fg-3)", fontFamily: "var(--font)", fontSize: "0.75rem" }}>
-    //                 Requires wallet connection and a hack.tez domain.
+    //                 Requires wallet connection and a {parentDomain} domain.
     //             </p>
     //         </div>
     //     );

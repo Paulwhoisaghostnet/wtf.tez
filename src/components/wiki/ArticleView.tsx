@@ -8,6 +8,7 @@ import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
 import Breadcrumbs from "./Breadcrumbs";
 import WikiAvatar from "./WikiAvatar";
+import { parentDomain, siteUrl } from "../../config/tezos";
 
 interface Props {
   slug: string;
@@ -380,11 +381,11 @@ export default function ArticleView({ slug }: Props) {
             author: { "@type": "Person", name: article.author },
             datePublished: article.createdAt,
             dateModified: article.updatedAt,
-            url: `https://hacktez.com/wiki/${article.slug}`,
+            url: `${siteUrl}/wiki/${article.slug}`,
             publisher: {
               "@type": "Organization",
-              name: "hack.tez Wiki",
-              url: "https://hacktez.com/wiki",
+              name: `${parentDomain} Wiki`,
+              url: `${siteUrl}/wiki`,
             },
           }),
         }}

@@ -13,7 +13,7 @@ import { loadPendingCommits } from "../lib/commits";
 import { useSubdomains } from "../hooks/useSubdomains";
 import { useRegistrationCount } from "../hooks/useRegistrationCount";
 import type { SubdomainRecord } from "../lib/domains";
-import config from "../config/tezos";
+import config, { parentDomain } from "../config/tezos";
 import ClaimHint from "../components/onboarding/ClaimHint";
 import HomeDashboard from "../components/HomeDashboard";
 
@@ -100,7 +100,7 @@ export default function Home() {
                 </div>
             )}
             {/* ── HERO ─────────────────────────────────────────────── */}
-            <section className="hero scanlines" aria-label={`*.hack.${config.tld} — Tezos Subdomain Registry`}>
+            <section className="hero scanlines" aria-label={`*.${parentDomain} — Tezos Subdomain Registry`}>
                 <div className="video-bg-wrap" aria-hidden="true">
                     {canvasReady && (
                         <Suspense fallback={null}>

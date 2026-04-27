@@ -7,7 +7,7 @@ import { useProfileEdit, ProfileEditFormBody } from "../components/ProfileEditFo
 import type { DomainRecord } from "../lib/domains";
 import type { HackProfile, ProjectEntry, BuilderStatus } from "../types/profile";
 import { ipfsUriToGatewayUrl } from "../lib/pin";
-import config from "../config/tezos";
+import { domainForLabel } from "../config/tezos";
 import { useTedContracts } from "../hooks/useTedContracts";
 import { Hackatar } from "../components/Hackatar";
 import { ProfileShareStudio } from "../components/ProfileShareStudio";
@@ -359,7 +359,7 @@ export default function Profile() {
     const hasLoaded = useRef(false);
 
     const label = subdomain ?? "";
-    const fullName = `${label}.hack.${config.tld}`;
+    const fullName = domainForLabel(label);
 
     const handleRefresh = useCallback(() => {
         setRefreshKey((k) => k + 1);

@@ -11,6 +11,17 @@ if (!DATABASE_URL) {
 }
 const sql = neon(DATABASE_URL);
 
+function normalizeDomain(value: string): string {
+  return value.trim().replace(/^\.+|\.+$/g, '').toLowerCase();
+}
+
+const parentDomain = normalizeDomain(
+  process.env.PARENT_DOMAIN
+    || process.env.VITE_PARENT_DOMAIN
+    || `${process.env.PARENT_DOMAIN_LABEL || process.env.VITE_PARENT_DOMAIN_LABEL || 'wtf'}.tez`,
+);
+const DEFAULT_AUTHOR = process.env.WIKI_DEFAULT_AUTHOR || `admin.${parentDomain}`;
+
 type Args = { files: string[]; all: boolean; dry: boolean; del?: string };
 function parseArgs(): Args {
   const a = process.argv.slice(2);
@@ -54,6 +65,7 @@ async function importFile(filePath: string, dry: boolean) {
   const catName = fm.category.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
   const catId = await ensureCategory(fm.category, catName);
   const tags = (fm.tags ?? []).slice(0, 10);
+  const author = fm.author ?? DEFAULT_AUTHOR;
 
   const found = await sql`SELECT id, revision FROM wiki_articles WHERE slug=${slug}` as unknown as Array<{id:string;revision:number}>;
   if (!found.length) {
@@ -62,8 +74,8 @@ async function importFile(filePath: string, dry: boolean) {
       return;
     }
     const id = `art-${slug}`;
-    await sql`INSERT INTO wiki_articles (id,slug,title,content,markdown,summary,category_id,author,last_editor) VALUES (${id},${slug},${fm.title},${markdown},${markdown},${fm.summary ?? null},${catId},${fm.author ?? 'admin.hack.tez'},${fm.author ?? 'admin.hack.tez'})`;
-    await sql`INSERT INTO wiki_revisions (id,article_id,revision,title,content,markdown,summary,editor,edit_summary) VALUES (${`rev-${slug}-1`},${id},${1},${fm.title},${markdown},${markdown},${fm.summary ?? null},${fm.author ?? 'admin.hack.tez'},${'Initial creation'})`;
+    await sql`INSERT INTO wiki_articles (id,slug,title,content,markdown,summary,category_id,author,last_editor) VALUES (${id},${slug},${fm.title},${markdown},${markdown},${fm.summary ?? null},${catId},${author},${author})`;
+    await sql`INSERT INTO wiki_revisions (id,article_id,revision,title,content,markdown,summary,editor,edit_summary) VALUES (${`rev-${slug}-1`},${id},${1},${fm.title},${markdown},${markdown},${fm.summary ?? null},${author},${'Initial creation'})`;
     for (const t of tags) {
       const tslug = slugify(t); await ensureTag(tslug, t);
       await sql`INSERT INTO wiki_article_tags (article_id,tag_id) SELECT ${id}, id FROM wiki_tags WHERE slug=${tslug} ON CONFLICT DO NOTHING`;
@@ -75,8 +87,8 @@ async function importFile(filePath: string, dry: boolean) {
       console.log(`[dry-run] Would update: ${slug} → rev ${newRev}`);
       return;
     }
-    await sql`UPDATE wiki_articles SET title=${fm.title},content=${markdown},markdown=${markdown},summary=${fm.summary ?? null},category_id=${catId},last_editor=${fm.author ?? 'admin.hack.tez'},revision=${newRev},updated_at=NOW() WHERE id=${id}`;
-    await sql`INSERT INTO wiki_revisions (id,article_id,revision,title,content,markdown,summary,editor,edit_summary) VALUES (${`rev-${slug}-${newRev}`},${id},${newRev},${fm.title},${markdown},${markdown},${fm.summary ?? null},${fm.author ?? 'admin.hack.tez'},${'Content update'}) ON CONFLICT DO NOTHING`;
+    await sql`UPDATE wiki_articles SET title=${fm.title},content=${markdown},markdown=${markdown},summary=${fm.summary ?? null},category_id=${catId},last_editor=${author},revision=${newRev},updated_at=NOW() WHERE id=${id}`;
+    await sql`INSERT INTO wiki_revisions (id,article_id,revision,title,content,markdown,summary,editor,edit_summary) VALUES (${`rev-${slug}-${newRev}`},${id},${newRev},${fm.title},${markdown},${markdown},${fm.summary ?? null},${author},${'Content update'}) ON CONFLICT DO NOTHING`;
     await sql`DELETE FROM wiki_article_tags WHERE article_id=${id}`;
     for (const t of tags) {
       const tslug = slugify(t); await ensureTag(tslug, t);
@@ -114,4 +126,3 @@ async function main() {
 }
 
 main().catch((e) => { console.error(e); process.exit(1); });
-

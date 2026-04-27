@@ -31,6 +31,33 @@ const SET_CHILD_RECORD_PROXY = "KT1HpddfW7rX5aT2cTdsDaQZnH46bU7jQSTU";
 const NAME_REGISTRY = "KT1REqKBXwULnmU6RpZxnRBUgcBmESnXhCWs";
 const TZKT_API = "https://api.ghostnet.tzkt.io/v1";
 
+function normalizeDomain(value: string): string {
+    return value.trim().replace(/^\.+|\.+$/g, "").toLowerCase();
+}
+
+function configuredGhostnetParentDomain(): string {
+    const explicit = process.env.GHOSTNET_PARENT_DOMAIN || process.env.VITE_GHOSTNET_PARENT_DOMAIN;
+    if (explicit) {
+        const domain = normalizeDomain(explicit);
+        if (!domain.endsWith(".gho")) {
+            throw new Error(`Configured ghostnet parent domain must end in .gho; got "${domain}"`);
+        }
+        return domain;
+    }
+
+    if (process.env.PARENT_DOMAIN) {
+        const domain = normalizeDomain(process.env.PARENT_DOMAIN);
+        if (domain.endsWith(".gho")) return domain;
+        if (domain.endsWith(".tez")) return `${domain.slice(0, -".tez".length)}.gho`;
+        throw new Error(`Configured parent domain must end in .tez or .gho; got "${domain}"`);
+    }
+
+    const label = normalizeDomain(process.env.PARENT_DOMAIN_LABEL || process.env.VITE_PARENT_DOMAIN_LABEL || "wtf");
+    return `${label}.gho`;
+}
+
+const PARENT_DOMAIN = configuredGhostnetParentDomain();
+
 // ─── Helpers ─────────────────────────────────────────────────────────
 
 function hexToBytes(hex: string): Uint8Array {
@@ -124,7 +151,8 @@ async function checkPreconditions() {
     console.log(`  Admin: ${storage.admin_address}`);
     console.log(`  Paused: ${storage.paused}`);
     console.log(`  Name registry: ${storage.name_registry}`);
-    console.log(`  Parent name: ${Buffer.from(storage.parent_name, "hex").toString("utf8")} (${storage.parent_name})`);
+    const storageParentName = Buffer.from(storage.parent_name, "hex").toString("utf8");
+    console.log(`  Parent name: ${storageParentName} (${storage.parent_name})`);
     console.log(
         `  Min commit age: ${storage.min_commit_age}s (${Math.round(parseInt(storage.min_commit_age) / 3600)}h)`,
     );
@@ -151,7 +179,14 @@ async function checkPreconditions() {
         console.log(`  ✅ Contract is not paused`);
     }
 
-    // 4. Check that the contract is an operator on the hack.gho NFT
+    if (storageParentName !== PARENT_DOMAIN) {
+        console.log(`  ❌ Parent mismatch: expected ${PARENT_DOMAIN}, contract storage has ${storageParentName}`);
+        allGood = false;
+    } else {
+        console.log(`  ✅ Parent domain matches ${PARENT_DOMAIN}`);
+    }
+
+    // 4. Check that the contract is an operator on the parent-domain NFT
     const ops: any[] = await fetchJson(
         `${TZKT_API}/operations/transactions?target=${NAME_REGISTRY}&entrypoint=update_operators&limit=50&sort.desc=id`,
     );
@@ -161,7 +196,7 @@ async function checkPreconditions() {
         return val.some((v: any) => v.add_operator?.operator === REGISTRAR);
     });
     if (operatorAdded) {
-        console.log(`  ✅ Contract is set as FA2 operator on hack.gho`);
+        console.log(`  ✅ Contract is set as FA2 operator on ${PARENT_DOMAIN}`);
     } else {
         console.log(`  ⚠️  Could not verify operator status (may need manual check)`);
     }
@@ -257,14 +292,19 @@ async function doCommit(
     }
 
     // Check if label is already taken
-    const labelsBigMap = storage.registered_labels;
+    const labelsBigMap = storage.claimed_labels ?? storage.registered_labels;
+    if (!labelsBigMap) {
+        console.log(`\n  ⚠️  Contract storage has no claimed_labels or registered_labels big_map to pre-check`);
+    }
     try {
-        const existing = await fetchJson(`${TZKT_API}/bigmaps/${labelsBigMap}/keys/${labelHex}`);
-        if (existing && existing.active) {
-            console.log(
-                `\n  ❌ Label "${Buffer.from(labelHex, "hex").toString("utf8")}" is already registered by ${existing.value}`,
-            );
-            process.exit(1);
+        if (labelsBigMap) {
+            const existing = await fetchJson(`${TZKT_API}/bigmaps/${labelsBigMap}/keys/${labelHex}`);
+            if (existing && existing.active) {
+                console.log(
+                    `\n  ❌ Label "${Buffer.from(labelHex, "hex").toString("utf8")}" is already registered by ${existing.value}`,
+                );
+                process.exit(1);
+            }
         }
     } catch {
         // Not found — good
@@ -333,25 +373,30 @@ async function doRegister(tezos: TezosToolkit, labelHex: string, targetAddress: 
 
 async function verify(labelHex: string) {
     const label = Buffer.from(labelHex, "hex").toString("utf8");
-    console.log(`\n🔎 Verifying registration of ${label}.hack.gho...\n`);
+    const fullName = `${label}.${PARENT_DOMAIN}`;
+    console.log(`\n🔎 Verifying registration of ${fullName}...\n`);
 
-    // Check our contract's registered_labels
+    // Check our contract's claimed_labels (v3) or registered_labels (legacy)
     const storage: any = await fetchJson(`${TZKT_API}/contracts/${REGISTRAR}/storage`);
     try {
-        const entry = await fetchJson(`${TZKT_API}/bigmaps/${storage.registered_labels}/keys/${labelHex}`);
-        if (entry && entry.active) {
-            console.log(`  ✅ Label registered in contract — owner: ${entry.value}`);
+        const labelsBigMap = storage.claimed_labels ?? storage.registered_labels;
+        if (!labelsBigMap) {
+            console.log(`  ❌ Contract storage has no claimed_labels or registered_labels big_map`);
         } else {
-            console.log(`  ❌ Label not found in contract's registered_labels`);
+            const entry = await fetchJson(`${TZKT_API}/bigmaps/${labelsBigMap}/keys/${labelHex}`);
+            if (entry && entry.active) {
+                console.log(`  ✅ Label registered in contract — owner: ${entry.value}`);
+            } else {
+                console.log(`  ❌ Label not found in contract's claimed_labels`);
+            }
         }
     } catch {
-        console.log(`  ❌ Label not found in contract's registered_labels`);
+        console.log(`  ❌ Label not found in contract's claimed_labels`);
     }
 
     // Check TED NameRegistry for the subdomain record
     // The record key in TED is the encoded domain name
-    // For "test.hack.gho" the record is stored with a specific encoding
-    console.log(`  Checking TED NameRegistry for ${label}.hack.gho...`);
+    console.log(`  Checking TED NameRegistry for ${fullName}...`);
     try {
         // TED stores records by encoded name — this is complex
         // Let's just check via TzKT events or recent set_child_record calls
@@ -400,6 +445,7 @@ async function main() {
     console.log(`\n🔑 Wallet: ${senderAddress}`);
     console.log(`📡 RPC: ${RPC_URL}`);
     console.log(`📄 Contract: ${REGISTRAR}`);
+    console.log(`🌐 Parent domain: ${PARENT_DOMAIN}`);
 
     // ─── Preconditions ───────────────────────────────────────────
     const { allGood, storage } = await checkPreconditions();

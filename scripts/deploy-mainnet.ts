@@ -2,7 +2,7 @@
 /**
  * Deploy HackTezRegistrar to Tezos mainnet.
  *
- * Strategy for existing hack.tez subdomains:
+ * Strategy for existing parent-domain subdomains:
  *   A) Pre-populate `registrations` and `claimed_labels` big_maps at origination
  *      by querying TED GraphQL.
  *   B) After deploy, re-query TED and call set_registration_count for any owners
@@ -19,9 +19,9 @@
  *   source .env && npx tsx scripts/deploy-mainnet.ts --dry-run
  *
  * After deployment:
- *   1. Add the NEW contract as operator on hack.tez NFT from admin wallet
+ *   1. Add the NEW contract as operator on the configured parent-domain NFT from admin wallet
  *      → NameRegistry (FA2): KT1GBZmSxmnKJXGMdMLbugPfLyUPmuLSMwKS (or current mainnet registry)
- *      → update_operators → add_operator(owner=<admin>, operator=<newContract>, token_id=<hack.tez token_id>)
+ *      → update_operators → add_operator(owner=<admin>, operator=<newContract>, token_id=<parent-domain token_id>)
  *   2. Update src/config/tezos.ts: registrarAddress = "<newContract>"
  *   3. Update VITE_REGISTRAR_ADDRESS in Netlify env vars
  */
@@ -38,11 +38,31 @@ const TZKT_API = "https://api.tzkt.io";
 const TED_GRAPHQL = "https://api.tezos.domains/graphql";
 const TED_CHECK_ADDRESS = "KT1F7JKNqwaoLzRsMio1MQC7zv3jG9dHcDdJ";
 const TED_SET_CHILD_RECORD_PROXY = "KT1QHLk1EMUA8BPH3FvRUeUmbTspmAhb7kpd";
-const PARENT_NAME_HEX = "6861636b2e74657a"; // "hack.tez"
-const PARENT_SUFFIX = ".hack.tez";
 const PAGE_SIZE = 50;
 const MIN_COMMIT_AGE = 60; // seconds — higher than ghostnet for mainnet safety
 const MAX_COMMIT_AGE = 86400; // 24 hours
+
+function normalizeDomain(value: string): string {
+    return value.trim().replace(/^\.+|\.+$/g, "").toLowerCase();
+}
+
+function configuredMainnetParentDomain(): string {
+    const explicit = process.env.MAINNET_PARENT_DOMAIN || process.env.PARENT_DOMAIN || process.env.VITE_PARENT_DOMAIN;
+    if (explicit) {
+        const domain = normalizeDomain(explicit);
+        if (!domain.endsWith(".tez")) {
+            throw new Error(`Configured mainnet parent domain must end in .tez; got "${domain}"`);
+        }
+        return domain;
+    }
+
+    const label = normalizeDomain(process.env.PARENT_DOMAIN_LABEL || process.env.VITE_PARENT_DOMAIN_LABEL || "wtf");
+    return `${label}.tez`;
+}
+
+const PARENT_DOMAIN = configuredMainnetParentDomain();
+const PARENT_NAME_HEX = Buffer.from(PARENT_DOMAIN, "utf8").toString("hex");
+const PARENT_SUFFIX = `.${PARENT_DOMAIN}`;
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const CONTRACT_JSON = resolve(__dirname, "../contract/output/Commit/step_001_cont_0_contract.json");
@@ -90,12 +110,12 @@ async function resolveTedContracts(): Promise<TedResolvedContracts> {
     return { nameRegistry, setChildRecord: TED_SET_CHILD_RECORD_PROXY };
 }
 
-async function fetchAllHackTezDomains(): Promise<{
+async function fetchAllParentDomains(): Promise<{
     ownerCounts: Map<string, number>;
     claimedLabels: Map<string, string>;
     totalDomains: number;
 }> {
-    console.log("  Querying TED GraphQL for all current *.hack.tez domains...");
+    console.log(`  Querying TED GraphQL for all current *${PARENT_SUFFIX} domains...`);
     const ownerCounts = new Map<string, number>();
     const claimedLabels = new Map<string, string>();
     let totalDomains = 0;
@@ -106,7 +126,7 @@ async function fetchAllHackTezDomains(): Promise<{
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-                query: `query HackTezOwners($suffix: String!, $first: Int!, $after: String) {
+                query: `query ParentDomainOwners($suffix: String!, $first: Int!, $after: String) {
                     domains(
                         where: { name: { endsWith: $suffix } }
                         first: $first
@@ -170,7 +190,7 @@ async function main() {
 
     console.log(`\n🔑 Deployer/Admin: ${adminAddress}`);
     console.log(`📡 RPC: ${RPC_URL}`);
-    console.log(`🌐 Network: mainnet (hack.tez)`);
+    console.log(`🌐 Network: mainnet (${PARENT_DOMAIN})`);
     console.log(`🧪 Mode: ${dryRun ? "DRY RUN (no origination)" : "LIVE DEPLOY"}`);
 
     const tedContracts = await resolveTedContracts();
@@ -181,8 +201,8 @@ async function main() {
     console.log(`  ✅ Contract code loaded`);
 
     // ─── Step A: Pre-populate registrations + claimed_labels from TED ───
-    console.log(`\n🔍 Step A: Fetching existing hack.tez snapshot from TED...`);
-    const preDeploySnapshot = await fetchAllHackTezDomains();
+    console.log(`\n🔍 Step A: Fetching existing ${PARENT_DOMAIN} snapshot from TED...`);
+    const preDeploySnapshot = await fetchAllParentDomains();
     const preDeployOwners = preDeploySnapshot.ownerCounts;
 
     const registrations = new MichelsonMap<string, number>();
@@ -201,7 +221,7 @@ async function main() {
     const metadataJson = JSON.stringify({
         name: "HackTezRegistrar",
         version: "3.0.0",
-        description: "Free sub-domain registrar for hack.tez on mainnet.",
+        description: `Free sub-domain registrar for ${PARENT_DOMAIN} on mainnet.`,
         interfaces: ["TZIP-016"],
     });
     metadata.set("", Buffer.from("tezos-storage:content").toString("hex"));
@@ -231,7 +251,7 @@ async function main() {
     console.log(`  admin_address:  ${storage.admin_address}`);
     console.log(`  name_registry:  ${storage.name_registry}`);
     console.log(`  name_registry source: TED SetChildRecord proxy (stable)`);
-    console.log(`  parent_name:    hack.tez (${storage.parent_name})`);
+    console.log(`  parent_name:    ${PARENT_DOMAIN} (${storage.parent_name})`);
     console.log(`  min_commit_age: ${storage.min_commit_age}s`);
     console.log(`  max_commit_age: ${storage.max_commit_age}s`);
     console.log(`  max_per_wallet: ${storage.max_per_wallet}`);
@@ -268,7 +288,7 @@ async function main() {
 
     // ─── Step B: Safety sweep — catch owners who registered during deploy ─
     console.log(`\n🔍 Step B: Re-querying TED for any new owners since pre-deploy snapshot...`);
-    const postDeploySnapshot = await fetchAllHackTezDomains();
+    const postDeploySnapshot = await fetchAllParentDomains();
     const postDeployOwners = postDeploySnapshot.ownerCounts;
 
     const newOwners: Array<{ address: string; count: number }> = [];
@@ -298,10 +318,10 @@ async function main() {
 
     // ─── Next steps ──────────────────────────────────────────────────────
     console.log(`\n📋 Next steps:`);
-    console.log(`  1. Add ${contractAddress} as operator on the hack.tez NFT:`);
+    console.log(`  1. Add ${contractAddress} as operator on the ${PARENT_DOMAIN} NFT:`);
     console.log(`     → NameRegistry FA2 (check TED docs for current mainnet address)`);
     console.log(
-        `     → update_operators → add_operator(owner=<admin>, operator=${contractAddress}, token_id=<hack.tez token_id>)`,
+        `     → update_operators → add_operator(owner=<admin>, operator=${contractAddress}, token_id=<${PARENT_DOMAIN} token_id>)`,
     );
     console.log(`  2. Update VITE_REGISTRAR_ADDRESS in Netlify env vars: "${contractAddress}"`);
     console.log(`  3. Update src/config/tezos.ts if registrarAddress is hardcoded`);

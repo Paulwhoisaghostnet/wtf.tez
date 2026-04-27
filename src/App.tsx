@@ -14,6 +14,7 @@ import Developers from "./pages/Developers";
 import Policies from "./pages/Policies";
 import Footer from "./components/Footer";
 import { useRecentActivity } from "./hooks/useRecentActivity";
+import { parentDomain } from "./config/tezos";
 
 const ActivityFeedPanel = lazy(() => import("./components/ActivityFeedPanel"));
 const ActivityToastQueue = lazy(() => import("./components/ActivityToastQueue"));
@@ -37,7 +38,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundaryStat
 
     componentDidCatch(err: Error, info: ErrorInfo) {
         if (import.meta.env.DEV) {
-            console.error("[hack.tez] Unhandled render error:", err, info.componentStack);
+            console.error(`[${parentDomain}] Unhandled render error:`, err, info.componentStack);
         }
     }
 
@@ -149,7 +150,7 @@ function Nav({ theme, setTheme }: { theme: Theme; setTheme: (t: Theme) => void }
     return (
         <nav className="nav" aria-label="Site navigation">
             <div className="container nav-inner">
-                <a href="/" className="nav-logo" aria-label="hack.tez home">
+                <a href="/" className="nav-logo" aria-label={`${parentDomain} home`}>
                     HACK<span className="dot-tez">TEZ</span>
                 </a>
 

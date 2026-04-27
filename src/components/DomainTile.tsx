@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { ExternalLink, Pencil, Eye, ChevronDown, ChevronUp, Globe } from "lucide-react";
 import { SiGithub, SiX } from "@icons-pack/react-simple-icons";
-import config from "../config/tezos";
+import config, { labelFromDomain } from "../config/tezos";
 import type { SubdomainRecord } from "../lib/domains";
 import type { BuilderStatus } from "../types/profile";
 import { Hackatar } from "./Hackatar";
@@ -70,7 +70,7 @@ function StatusBadge({ status }: { status: BuilderStatus }) {
 
 export default function DomainTile({ domain, onMutate }: { domain: SubdomainRecord; onMutate: () => void }) {
     const [expanded, setExpanded] = useState(false);
-    const label = domain.name.replace(`.hack.${config.tld}`, "");
+    const label = labelFromDomain(domain.name);
     const { profile } = domain;
     const displayName = profile.name || profile.nickname || label;
 

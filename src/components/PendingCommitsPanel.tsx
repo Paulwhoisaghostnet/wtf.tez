@@ -5,7 +5,7 @@ import { loadPendingCommits, removePendingCommit, type PendingCommit } from "../
 import { submitRegister, submitReleaseCommitment, labelToHexBytes } from "../lib/contract";
 import { waitForOperation } from "../lib/tzkt";
 import { getSubdomainsByOwner, type SubdomainRecord } from "../lib/domains";
-import config from "../config/tezos";
+import { domainForLabel } from "../config/tezos";
 
 type ClaimState = "idle" | "claiming" | "confirming" | "fetching" | "success" | "error";
 type ReleaseState = "idle" | "releasing" | "error";
@@ -14,7 +14,7 @@ const SUBDOMAIN_FETCH_RETRIES = 8;
 const SUBDOMAIN_FETCH_DELAY_MS = 3000;
 
 async function fetchSubdomainWithRetry(address: string, label: string): Promise<SubdomainRecord> {
-    const expected = `${label}.hack.${config.tld}`;
+    const expected = domainForLabel(label);
     for (let i = 0; i < SUBDOMAIN_FETCH_RETRIES; i++) {
         if (i > 0) await new Promise((r) => setTimeout(r, SUBDOMAIN_FETCH_DELAY_MS));
         const subs = await getSubdomainsByOwner(address);
@@ -177,6 +177,7 @@ export default function PendingCommitsPanel({
                 const state = claimState[commit.label] ?? "idle";
                 const relState = releaseState[commit.label] ?? "idle";
                 const isBusy = state === "claiming" || state === "confirming" || state === "fetching";
+                const fullName = domainForLabel(commit.label);
 
                 return (
                     <div key={commit.label} className="pending-commit-card">
@@ -216,7 +217,7 @@ export default function PendingCommitsPanel({
                         </div>
 
                         <div className="pending-commit-name mono">
-                            {commit.label}.hack.{config.tld}
+                            {fullName}
                         </div>
 
                         {!ready && (
@@ -233,7 +234,7 @@ export default function PendingCommitsPanel({
                                 className="btn btn-primary btn-full"
                                 style={{ marginTop: "0.75rem" }}
                             >
-                                Claim {commit.label}.hack.{config.tld}
+                                Claim {fullName}
                             </button>
                         )}
 

@@ -1,7 +1,7 @@
 /** biome-ignore-all lint/suspicious/noCommentText: <I said so> */
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useSearchParams, Link } from "react-router-dom";
-import config from "../config/tezos";
+import { parentDomain } from "../config/tezos";
 import { useHackerProfiles } from "../hooks/useHackerProfiles";
 import type { HackerEntry } from "../hooks/useHackerProfiles";
 import type { BuilderStatus } from "../types/profile";
@@ -577,7 +577,7 @@ export default function Hackers() {
             ) : (
                 <>
                     <p className="section-body" style={{ marginBottom: "1.5rem", color: "var(--fg-3)" }}>
-                        {hackers.length} hacker{hackers.length !== 1 ? "s" : ""} on hack.{config.tld}
+                        {hackers.length} hacker{hackers.length !== 1 ? "s" : ""} on {parentDomain}
                     </p>
 
                     {/* Filter bar */}

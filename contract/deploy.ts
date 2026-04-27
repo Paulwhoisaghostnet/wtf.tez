@@ -51,6 +51,7 @@ async function main() {
     const storageLimit = parseInt(values["storage-limit"]!, 10);
     const code = readFileSync(values.code, "utf-8");
     const init = readFileSync(values.storage, "utf-8");
+    const parentDomain = process.env.PARENT_DOMAIN || process.env.GHOSTNET_PARENT_DOMAIN || "the configured parent domain";
 
     console.log(`🌐 RPC: ${rpcUrl}`);
     console.log(`📦 Storage limit: ${storageLimit}`);
@@ -88,7 +89,7 @@ async function main() {
         console.log(`\n📋 Next steps:`);
         console.log(`   1. Set VITE_REGISTRAR_ADDRESS=${contract.address} in your .env`);
         console.log(`   2. Verify on TzKT: https://ghostnet.tzkt.io/${contract.address}`);
-        console.log(`   3. Transfer hack.gho ownership to ${contract.address} via TED`);
+        console.log(`   3. Transfer/operator-enable ${parentDomain} ownership to ${contract.address} via TED`);
     } catch (err: unknown) {
         console.error("\n❌ Origination failed:");
         if (err instanceof Error) {

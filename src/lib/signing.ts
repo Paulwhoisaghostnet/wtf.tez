@@ -1,5 +1,6 @@
 import { SigningType } from "@tezos-x/octez.connect-sdk";
 import type { DAppClient } from "@tezos-x/octez.connect-sdk";
+import { parentDomain } from "../config/tezos";
 
 /** Convert a UTF-8 string to its hex representation. */
 export function stringToHex(str: string): string {
@@ -21,7 +22,7 @@ export function packMichelineString(str: string): string {
 /** Build the human-readable message shown in the wallet approval dialog. */
 export function buildPinMessage(timestamp: number, nonce: string, fileCount: number): string {
   const date = new Date(timestamp * 1000).toISOString();
-  return `hack.tez — Authorize ${fileCount} image upload${fileCount > 1 ? "s" : ""} · ${date} · ${nonce}`;
+  return `${parentDomain} — Authorize ${fileCount} image upload${fileCount > 1 ? "s" : ""} · ${date} · ${nonce}`;
 }
 
 /** Sign an arbitrary message via Beacon wallet and return the signature + signer public key. */

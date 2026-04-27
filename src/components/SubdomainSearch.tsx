@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { checkAvailability, validateLabel, isReserved } from "../lib/domains";
 import { useTezos } from "../context/TezosContext";
-import config from "../config/tezos";
+import { domainForLabel, parentDomain } from "../config/tezos";
 import { useEligibility } from "../hooks/useEligibility";
 import { useContractConfig, formatDuration } from "../hooks/useContractConfig";
 import { submitCommit, labelToHexBytes, generateSalt } from "../lib/contract";
@@ -92,6 +92,7 @@ export default function SubdomainSearch({ onCommit }: { onCommit?: () => void })
     };
 
     const waitDescription = formatDuration(contractConfig.minCommitAgeSec);
+    const displayName = label ? domainForLabel(label) : parentDomain;
     // suppress unused warning — minCommitAgeMs used in future
     void minCommitAgeMs;
 
@@ -126,7 +127,7 @@ export default function SubdomainSearch({ onCommit }: { onCommit?: () => void })
                         aria-describedby="search-suffix"
                     />
                     <span id="search-suffix" className="search-suffix" aria-hidden="true">
-                        .hack.{config.tld}
+                        .{parentDomain}
                     </span>
                 </div>
                 <button
@@ -147,14 +148,14 @@ export default function SubdomainSearch({ onCommit }: { onCommit?: () => void })
 
             {status === "taken" && (
                 <div className="status-panel status-panel--warn" role="status">
-                    <strong>{label}.hack.{config.tld}</strong> is already taken.
+                    <strong>{displayName}</strong> is already taken.
                 </div>
             )}
 
             {status === "available" && (
                 <div className="status-panel status-panel--ok" role="status">
                     <p style={{ marginBottom: "0.6rem" }}>
-                        ✓ <strong>{label}.hack.{config.tld}</strong> is available.
+                        ✓ <strong>{displayName}</strong> is available.
                     </p>
 
                     {!address && (
@@ -173,7 +174,7 @@ export default function SubdomainSearch({ onCommit }: { onCommit?: () => void })
                                 Two steps: commit now, then register after {waitDescription}. Prevents frontrunning.
                             </p>
                             <button onClick={handleCommit} className="btn btn-primary btn-full">
-                                Step 1 — Commit to {label}.hack.{config.tld}
+                                Step 1 — Commit to {displayName}
                             </button>
                         </div>
                     )}

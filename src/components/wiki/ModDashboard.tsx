@@ -4,6 +4,7 @@ import type { WikiBanProposal, WikiAuditEntry } from "../../hooks/useWikiApi";
 import { useTezos } from "../../context/TezosContext";
 import { ArrowLeft } from "lucide-react";
 import { Link } from "react-router-dom";
+import { parentDomain } from "../../config/tezos";
 
 export default function ModDashboard() {
   const api = useWikiApi();
@@ -50,7 +51,7 @@ export default function ModDashboard() {
     return (
       <div className="container" style={{ paddingBlock: "3rem 5rem" }}>
         <p style={{ color: "var(--fg-3)", fontFamily: "var(--font)", fontSize: "0.75rem" }}>
-          Requires wallet connection and a hack.tez domain.
+          Requires wallet connection and a {parentDomain} domain.
         </p>
       </div>
     );
@@ -126,7 +127,7 @@ export default function ModDashboard() {
           </h3>
           <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
             <input
-              placeholder="domain.hack.tez"
+              placeholder={`domain.${parentDomain}`}
               value={banDomain}
               onChange={e => setBanDomain(e.target.value)}
               style={{ fontFamily: "var(--font)", fontSize: "0.75rem", padding: "0.5rem 0.75rem", background: "var(--bg-2)", border: "1px solid var(--border)", color: "var(--fg)", letterSpacing: "0.04em", width: "100%" }}
