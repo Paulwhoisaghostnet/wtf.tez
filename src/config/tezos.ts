@@ -78,7 +78,7 @@ const configs: Record<TezosNetwork, NetworkConfig> = {
     mainnet: {
         name: "mainnet",
         tld: "tez",
-        rpcUrl: "https://mainnet.tezos.marigold.dev",
+        rpcUrl: "https://rpc.tzkt.io/mainnet",
         tzktApi: "https://api.tzkt.io",
         domainsGraphql: "https://api.tezos.domains/graphql",
         registrarAddress: import.meta.env.VITE_REGISTRAR_ADDRESS,

@@ -378,7 +378,7 @@ For complex Tezos smart-contract interactions, do **not** use `DAppClient` direc
 import { TezosToolkit } from '@taquito/taquito'; // or octez.js equivalent
 import { BeaconWallet } from '@taquito/beacon-wallet'; // or octez.js equivalent
 
-const Tezos = new TezosToolkit('https://ghostnet.ecadinfra.com');
+const Tezos = new TezosToolkit('https://rpc.ghostnet.teztnets.com');
 const wallet = new BeaconWallet({ name: 'My dApp' });
 
 Tezos.setWalletProvider(wallet);

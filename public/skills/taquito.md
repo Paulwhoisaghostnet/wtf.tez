@@ -31,7 +31,7 @@ npm install @taquito/taquito
 ```typescript
 import { TezosToolkit } from "@taquito/taquito";
 
-const Tezos = new TezosToolkit("https://ghostnet.ecadinfra.com");
+const Tezos = new TezosToolkit("https://rpc.ghostnet.teztnets.com");
 ```
 
 **TezosToolkit constructor** accepts either:
@@ -43,7 +43,7 @@ const Tezos = new TezosToolkit("https://ghostnet.ecadinfra.com");
 
 | Network  | Example RPC URL                      |
 | -------- | ------------------------------------ |
-| Ghostnet | `https://ghostnet.ecadinfra.com`     |
+| Ghostnet | `https://rpc.ghostnet.teztnets.com`     |
 | Mainnet  | Use a trusted public or private node |
 
 A full list of public RPC nodes is maintained in the Taquito documentation.
@@ -325,8 +325,8 @@ Multiple `TezosToolkit` instances are valid and useful for:
 - Separating read-only queries from write operations
 
 ```typescript
-const readonlyTezos = new TezosToolkit("https://ghostnet.ecadinfra.com");
-const signingTezos = new TezosToolkit("https://ghostnet.ecadinfra.com");
+const readonlyTezos = new TezosToolkit("https://rpc.ghostnet.teztnets.com");
+const signingTezos = new TezosToolkit("https://rpc.ghostnet.teztnets.com");
 
 signingTezos.setProvider({
     signer: await InMemorySigner.fromSecretKey("edsk..."),

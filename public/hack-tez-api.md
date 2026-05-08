@@ -444,7 +444,7 @@ function validateLabel(label: string): { valid: boolean; error?: string } {
 | Registrar          | `KT1X2ZbjZBaeRnnkzLyaZ3FtGp7wKuaimbzg`       | `KT1UKAt5ioGdbKb435ziP25FRDzqgC7BUeB4` |
 | TED GraphQL        | `https://ghostnet-api.tezos.domains/graphql` | `https://api.tezos.domains/graphql`  |
 | TzKT API           | `https://api.ghostnet.tzkt.io`               | `https://api.tzkt.io`                |
-| RPC                | `https://rpc.ghostnet.teztnets.com`          | `https://mainnet.tezos.marigold.dev` |
+| RPC                | `https://rpc.ghostnet.teztnets.com`          | `https://rpc.tzkt.io/mainnet` |
 
 Network is selected via `VITE_TEZOS_NETWORK` env var (default: `ghostnet`).
 
